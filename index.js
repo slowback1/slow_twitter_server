@@ -12,7 +12,10 @@ const access_secret = auth.access_secret;
 
 var filterTweets = require('./filterTweets');
 var parseTweets = require('./parseTweets');
-
+var combineTweets = require('./combineTweets');
+var countWords = require('./countWords');
+var getMostCommon = require('./getMostCommon');
+var removeUsernames = require('./removeUsernames');
 const port = (process.env.PORT || 8082);
 
 const app = express();
@@ -33,6 +36,7 @@ app.options("/user" , (req, res) => {
 })
 app.post("/user", (req, res) => {
     var name = req.body.postUser;
+    var omittedWords = req.body.omittedWords;
     var T = new twit({
         consumer_key: consumer_key,
         consumer_secret: consumer_secret,
@@ -40,18 +44,19 @@ app.post("/user", (req, res) => {
         access_token_secret: access_secret
     })
     
-    T.get('statuses/user_timeline', {screen_name: name, count: 100}, function(err, data) {
+    T.get('statuses/user_timeline', {screen_name: name, count: 500}, function(err, data) {
         var tweets = data;
-        var b = filterTweets(tweets);
-        async function a(e) {
-        let result = await parseTweets(e);
-        console.log(result);
-        return result;
-            
+        if(tweets[0] === undefined || tweets[0] === null || tweets[0].id === 894634248367419400) {
+            res.send({tweets: [], message: "error/baduser"});
         }
-        let finalResult = a(b);
-        console.log(finalResult);
-        res.send({tweets: finalResult, message: "hi"});
+        else {
+        var filteredTweets = filterTweets(tweets);
+        var combinedTweets = combineTweets(filteredTweets);
+        var wordCount = countWords(combinedTweets, omittedWords);
+        var _20_mostCommonWords = getMostCommon(wordCount, 20);
+        var _50_mostCommonWords = getMostCommon(wordCount, 50);
+        res.send({tweets: _20_mostCommonWords, tweets_50: _50_mostCommonWords, message: "hi"}); 
+        }
     })
 });
 
